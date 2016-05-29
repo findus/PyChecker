@@ -23,4 +23,8 @@ setup(
         'setuptools',
         'notify2',
     ],
+    entry_points={
+        'console_scripts' : ['pychecker = PyChecker.PyChecker:main']
+    },
+    package_data={'': ['quader.png']},
 )

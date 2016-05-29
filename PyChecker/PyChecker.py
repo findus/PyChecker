@@ -4,11 +4,12 @@
 import wx
 import Twitchcheck
 import webbrowser
+import os
 from thread import start_new_thread
 
 
 TRAY_TOOLTIP = 'PyChecker'
-TRAY_ICON = 'quader.png'
+TRAY_ICON = os.path.join(os.path.dirname(__file__), 'quader.png')
 
 def create_menu_item(menu, label, func, *args):
     item = wx.MenuItem(menu, -1, label)

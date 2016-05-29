@@ -1,1 +1,4 @@
 *.pyc
+PyChecker.egg-info
+build/
+dist/
