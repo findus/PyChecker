@@ -1,76 +1,66 @@
+#!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
-import requests
-import json
-import notify2
-import time
-from os.path import expanduser
-# encoding=utf8
-import sys
-reload(sys)
-sys.setdefaultencoding('utf8')
-
-firststart = True
-dictionary = dict()
+#https://stackoverflow.com/questions/6389580/quick-and-easy-trayicon-with-python/33069455#33069455
+import wx
+import Twitchcheck
+import webbrowser
+from thread import start_new_thread
 
 
-def printsummary(json):
-    notify2.init('Streams Online')
-    message = ''
-    for channel in json['streams']:
-        message += " {0:20}     {1:6}\n    {2}\n\n".format(channel['channel']['display_name'],str(channel['viewers']),channel['game'])
-    message = message[:-2]
-    showmessage(message)
+TRAY_TOOLTIP = 'PyChecker'
+TRAY_ICON = 'quader.png'
 
-def showmessage(message):
-    n = notify2.Notification("Streams:",message,"notification-message-im")
-    n.show()
+def create_menu_item(menu, label, func, *args):
+    item = wx.MenuItem(menu, -1, label)
+    menu.Bind(wx.EVT_MENU, lambda evt, temp=args: func(args[0]), id=item.GetId())
+    menu.AppendItem(item)
+    return item
 
-def loadFromFile():
-    streamfile = open(expanduser("~")+"/.config/.pychecker/streams")
-    channels = streamfile.read().replace("\n","").split(",")
-    return channels
+class TaskBarIcon(wx.TaskBarIcon):
+    def __init__(self, frame):
+        self.frame = frame
+        super(TaskBarIcon, self).__init__()
+        self.set_icon(TRAY_ICON)
+        self.Bind(wx.EVT_TASKBAR_LEFT_DOWN, self.on_left_down)
 
-def downloadjson(channellist):
-    link = 'https://api.twitch.tv/kraken/streams/?channel=%s' % ','.join(channels)
-    #print "Connect to %s" % link
-    s = requests.get(link)
-    return json.loads(s.text)
+    def CreatePopupMenu(self):
+        menu = wx.Menu()
+        for channel in Twitchcheck.dictionary.values():
+            create_menu_item(menu,' {0:<20}     {1:<7}    {2}'.format(channel['name'],channel["viewers"],channel['game']),self.openinbrowser,channel['urlname'])
+        create_menu_item(menu, 'Exit', self.on_exit,0)
 
-def showList():
-    json = downloadjson(channels)
-    printsummary(json)
+        return menu
 
-def startMainLoop():
-    while True:
-        parsedJson = downloadjson(channels)
-        global firststart
-        if firststart == True:
-            #print "First"
-            printsummary(parsedJson)
-            firststart = False
+    def set_icon(self, path):
+        icon = wx.IconFromBitmap(wx.Bitmap(path))
+        self.SetIcon(icon, TRAY_TOOLTIP)
 
-        onlineoffline = ''
-        #print "Else"
-        for channel in dictionary.keys():
-            found = False
-            #print channel
-            for listchannel in parsedJson['streams']:                #print channel,'=',listchannel['channel']['name']
-                if listchannel['channel']['name'] == channel:
-                    #print "Channel Found %s , State in dict: %s" % (channel,dictionary[channel])
-                    found = True
-                    if dictionary[channel] == False:
-                        onlineoffline +=  "  %s \n" % listchannel['channel']['display_name']
-                        dictionary[channel] = True
-            #print "ended iteration, %s, %s, %s" % (found,dictionary[channel],channel)
-            if found == False and dictionary[channel] == True:
-                onlineoffline +=  "  %s \n" % listchannel['channel']['display_name']
-                dictionary[channel] = False
-        if(len(onlineoffline) > 0):
-            showmessage(onlineoffline)
-        time.sleep(60)
+    def on_left_down(self, event):
+        print "Tray icon was left-clicked."
+        Twitchcheck.showList()
+
+    def on_exit(self, event):
+        wx.CallAfter(self.Destroy)
+        self.frame.Close()
+
+    def openinbrowser(self,name):
+        webbrowser.open_new_tab("https://www.twitch.tv/{}".format(name))
+
+class App(wx.App):
+    def OnInit(self):
+        frame=wx.Frame(None)
+        self.SetTopWindow(frame)
+        TaskBarIcon(frame)
+        return True
+
+def main():
+    app = App(False)
+    start_new_thread(Twitchcheck.startMainLoop,())
+    app.MainLoop()
 
 
-channels = loadFromFile()
 
-for channelname in channels:
-    dictionary[channelname] = False
+
+
+if __name__ == '__main__':
+    main()
