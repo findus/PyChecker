@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 import requests
 import json
-import notify2
 import time
+import os
 from os.path import expanduser
+if os.name == 'posix':
+    import notify2
 # encoding=utf8
 import sys
 reload(sys)
@@ -22,8 +24,9 @@ def printsummary(json):
     showmessage(message)
 
 def showmessage(message):
-    n = notify2.Notification("Streams:",message,"notification-message-im")
-    n.show()
+    if os.name == 'posix':
+        n = notify2.Notification("Streams:",message,"notification-message-im")
+        n.show()
 
 def loadFromFile():
     streamfile = open(expanduser("~")+"/.config/.pychecker/streams")
