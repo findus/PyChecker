@@ -16,7 +16,6 @@ dictionary = dict()
 
 
 def printsummary(json):
-    notify2.init('Streams Online')
     message = ''
     for channel in json['streams']:
         message += " {0:20}     {1:6}\n    {2}\n\n".format(channel['channel']['display_name'],str(channel['viewers']),channel['game'])
@@ -25,6 +24,7 @@ def printsummary(json):
 
 def showmessage(message):
     if os.name == 'posix':
+            notify2.init('Streams Online')
         n = notify2.Notification("Streams:",message,"notification-message-im")
         n.show()
 
