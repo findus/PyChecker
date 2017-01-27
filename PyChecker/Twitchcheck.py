@@ -24,7 +24,7 @@ def printsummary(json):
 
 def showmessage(message):
     if os.name == 'posix':
-            notify2.init('Streams Online')
+        notify2.init('Streams Online')
         n = notify2.Notification("Streams:",message,"notification-message-im")
         n.show()
 
@@ -35,8 +35,9 @@ def loadFromFile():
 
 def downloadjson(channellist):
     link = 'https://api.twitch.tv/kraken/streams/?channel=%s' % ','.join(channels)
+    headers = {'Client-ID' : 'og1crpd047s8mo4ocshg1yf93x5ak3n'}
     #print "Connect to %s" % link
-    s = requests.get(link)
+    s = requests.get(link,headers=headers)
     return json.loads(s.text)
 
 def showList():
