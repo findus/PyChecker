@@ -12,12 +12,17 @@ reload(sys)
 sys.setdefaultencoding('utf8')
 
 firststart = True
+
 dictionary = dict()
+gameDict = dict()
+userDict = dict()
+
+headers = {'Client-ID' : 'og1crpd047s8mo4ocshg1yf93x5ak3n'}
 
 def printsummary(json):
     message = ''
-    for channel in json['streams']:
-        message += " {0:20}     {1:6}\n    {2}\n\n".format(channel['channel']['display_name'],str(channel['viewers']),channel['game'])
+    for channel in json:
+        message += " {0:20}     {1:6}\n    {2}\n\n".format(channel['user_id'],str(channel['viewer_count']),getGameName(channel['game_id']))
     message = message[:-2]
     showmessage(message)
 
@@ -39,21 +44,27 @@ def getToken():
 
 def getUserID():
     link = "https://api.twitch.tv/helix/users?login=Fozruk_"
-    headers = {'Client-ID' : 'hb7zvth15ub915hs3qw0h5c6xab0a1'}
     s = requests.get(link,headers=headers)
     json2 = json.loads(s.text)
     return json2["data"][0]["id"]
 
 #TODO pagination
-def getFollowedStreams():
-    link = 'https://api.twitch.tv/helix/users/follows?first=100&from_id=%s' % getUserID()
-    headers = {'Client-ID' : 'hb7zvth15ub915hs3qw0h5c6xab0a1'}
+def getFollowedStreams(userID):
+    link = 'https://api.twitch.tv/helix/users/follows?first=100&from_id=%s' % userID
+    s = requests.get(link,headers=headers)
+    return json.loads(s.text)
+
+def getStreamIDs(followedStreamsResponse):
+    return '&user_id='.join(map(lambda x: x['to_id'], followedStreamsResponse['data']))
+
+def getStreams():
+    link = "https://api.twitch.tv/helix/streams?first=100&user_id=%s" % getStreamIDs(getFollowedStreams(userID))
+
     s = requests.get(link,headers=headers)
     return json.loads(s.text)
 
 def downloadjson(channellist):
     link = 'https://api.twitch.tv/kraken/streams/?channel=%s' % ','.join(channels)
-    headers = {'Client-ID' : 'og1crpd047s8mo4ocshg1yf93x5ak3n'}
     #print "Connect to %s" % link
     s = requests.get(link,headers=headers)
     return json.loads(s.text)
@@ -62,9 +73,19 @@ def showList():
     json = downloadjson(channels)
     printsummary(json)
 
+def getGameName(gameID):
+    if  gameDict.get(gameID) is None:
+        gameDict[gameID] = getGameNameFromTwitch(gameID)
+    return gameDict.get(gameID)
+#TODO load all at once
+def getGameNameFromTwitch(gameID):
+    link = "https://api.twitch.tv/helix/games?id=%s" % gameID
+    s = requests.get(link,headers=headers)
+    return json.loads(s.text)['data'][0]["name"]
+
 def startMainLoop():
     while True:
-        parsedJson = downloadjson(channels)
+        parsedJson = getStreams()['data']
         global firststart
         if firststart == True:
             #print "First"
@@ -81,6 +102,7 @@ def startMainLoop():
                 #print channel,'=',listchannel['channel']['name']
                 if listchannel['channel']['name'] == channel:
                     #print "Channel Found %s , State in dict: %s" % (channel,dictionary[channel])
+                    #https://stackoverflow.com/questions/5618878/how-to-convert-list-to-string
                     found = True
                     foundchannel = dictionary[channel]
 
@@ -108,10 +130,10 @@ def startMainLoop():
         time.sleep(60)
 
 
-channels = loadFromFile()
+userID = getUserID()
+channels = getFollowedStreams(userID)
 
 for channelname in channels:
     dictionary[channelname] = {'name' : channelname, 'online' : False , "viewers" : 0 , 'topic' : '' , 'game' : '', 'urlname' : ''}
 
-
-userID = getUserID()
+startMainLoop()
