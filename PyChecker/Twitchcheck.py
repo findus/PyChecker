@@ -57,9 +57,14 @@ def getFollowedStreams(userID):
 def getStreamIDs(followedStreamsResponse):
     return '&user_id='.join(map(lambda x: x['to_id'], followedStreamsResponse['data']))
 
+def getStreamUserIDs(streamsResponse):
+    return '&id='.join(map(lambda x: x['user_id'], streamsResponse))
+
+def getGameIDs(streamsResponse):
+    return '&id='.join(map(lambda x: x['game_id'], streamsResponse))
+
 def getStreams():
     link = "https://api.twitch.tv/helix/streams?first=100&user_id=%s" % getStreamIDs(getFollowedStreams(userID))
-
     s = requests.get(link,headers=headers)
     return json.loads(s.text)
 
@@ -69,19 +74,27 @@ def downloadjson(channellist):
     s = requests.get(link,headers=headers)
     return json.loads(s.text)
 
+def fillUserDict(userlist):
+    global userDict
+    userDict = dict(map(lambda x: (x['id'],x['display_name']),userlist['data']))
+
+def fillGameDict(gamelist):
+    global gameDict
+    gameDict = dict(map(lambda x: (x['id'],x['name']),gamelist))
+
 def showList():
     json = downloadjson(channels)
     printsummary(json)
 
-def getGameName(gameID):
-    if  gameDict.get(gameID) is None:
-        gameDict[gameID] = getGameNameFromTwitch(gameID)
-    return gameDict.get(gameID)
-#TODO load all at once
-def getGameNameFromTwitch(gameID):
-    link = "https://api.twitch.tv/helix/games?id=%s" % gameID
+def fetchGameNames(gameIDs):
+    link = "https://api.twitch.tv/helix/games?id=%s" % gameIDs
     s = requests.get(link,headers=headers)
-    return json.loads(s.text)['data'][0]["name"]
+    return json.loads(s.text)['data']
+
+def fetchUserNames(listOfUserIds):
+    link = "https://api.twitch.tv/helix/users?id=%s" % listOfUserIds
+    s = requests.get(link,headers=headers)
+    return json.loads(s.text)['data']
 
 def startMainLoop():
     while True:
