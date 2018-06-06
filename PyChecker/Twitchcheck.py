@@ -2,6 +2,7 @@
 import requests
 import json
 import time
+import traceback
 import os
 from os.path import expanduser
 if os.name == 'posix':
@@ -22,7 +23,7 @@ headers = {'Client-ID' : 'og1crpd047s8mo4ocshg1yf93x5ak3n'}
 def printsummary(json):
     message = ''
     for channel in json:
-        message += " {0:20}     {1:6}\n    {2}\n\n".format(channel['user_id'],str(channel['viewer_count']),getGameName(channel['game_id']))
+        message += " {0:20}     {1:6}\n    {2}\n\n".format(getUserName(channel['user_id']),str(channel['viewer_count']),getGameName(channel['game_id']))
     message = message[:-2]
     showmessage(message)
 
@@ -32,10 +33,10 @@ def showmessage(message):
         n = notify2.Notification("Streams:",message,"notification-message-im")
         n.show()
 
-def loadFromFile():
-    streamfile = open(expanduser("~")+"/.config/.pychecker/streams")
-    channels = streamfile.read().replace("\n","").split(",")
-    return channels
+#def loadFromFile():
+#    streamfile = open(expanduser("~")+"/.config/.pychecker/streams")
+#    channels = streamfile.read().replace("\n","").split(",")
+#    return channels
 
 def getToken():
     link = "https://id.twitch.itv/oauth2/authorize?client_id=hb7zvth15ub915hs3qw0h5c6xab0a1&redirect_uri=http://localhost&response_type=token&scope=analytics:read:games"
@@ -66,24 +67,27 @@ def getGameIDs(streamsResponse):
 def getStreams():
     link = "https://api.twitch.tv/helix/streams?first=100&user_id=%s" % getStreamIDs(getFollowedStreams(userID))
     s = requests.get(link,headers=headers)
-    return json.loads(s.text)
+    meem =  json.loads(s.text)
+    print meem
+    return meem
 
 def downloadjson(channellist):
     link = 'https://api.twitch.tv/kraken/streams/?channel=%s' % ','.join(channels)
-    #print "Connect to %s" % link
+    #print "Connect to %s" %displayk
     s = requests.get(link,headers=headers)
     return json.loads(s.text)
 
 def fillUserDict(userlist):
     global userDict
-    userDict = dict(map(lambda x: (x['id'],x['display_name']),userlist['data']))
+    userDict = dict(map(lambda x: (x['id'],x['display_name']),userlist))
 
 def fillGameDict(gamelist):
     global gameDict
     gameDict = dict(map(lambda x: (x['id'],x['name']),gamelist))
 
 def showList():
-    json = downloadjson(channels)
+    json = getStreams()['data']
+    print(json)
     printsummary(json)
 
 def fetchGameNames(gameIDs):
@@ -94,59 +98,85 @@ def fetchGameNames(gameIDs):
 def fetchUserNames(listOfUserIds):
     link = "https://api.twitch.tv/helix/users?id=%s" % listOfUserIds
     s = requests.get(link,headers=headers)
+    print "UserIDs: %s" % s.text
     return json.loads(s.text)['data']
+
+def getGameName(id):
+    if id not in gameDict:
+        global gameDict
+        gameDict[id] = fetchGameNames(id)[0]['name']
+    return gameDict[id]
+
+def getUserName(id):
+    print "Userdict Username for ID %s" % id
+    if id not in userDict:
+        global userDict
+        print "UserID %s not in dict, will fetch" % id
+        userDict[id] = fetchUserNames(id)[0]['display_name']
+    return userDict[id]
 
 def startMainLoop():
     while True:
-        parsedJson = getStreams()['data']
-        global firststart
-        if firststart == True:
-            #print "First"
-            printsummary(parsedJson)
-            firststart = False
+        print "Enter loop"
+        try:
+            parsedJson = getStreams()['data']
+            global firststart
+            if firststart == True:
+                #print "First"
+                fillGameDict(fetchGameNames(getGameIDs(parsedJson)))
+                fillUserDict(fetchUserNames(getStreamUserIDs(parsedJson)))
+                printsummary(parsedJson)
+                firststart = False
 
-        onlineoffline = ''
-        #print "Else"
-        for channel in dictionary.keys():
-            found = False
-            dictionary[channel]['urlname'] = channel
-            #print channel
-            for listchannel in parsedJson['streams']:
-                #print channel,'=',listchannel['channel']['name']
-                if listchannel['channel']['name'] == channel:
-                    #print "Channel Found %s , State in dict: %s" % (channel,dictionary[channel])
-                    #https://stackoverflow.com/questions/5618878/how-to-convert-list-to-string
-                    found = True
-                    foundchannel = dictionary[channel]
+            onlineoffline = ''
+            #print "Else"
+            for channel in dictionary.keys():
+                found = False
+                #dictionary[channel]['urlname'] = channel
+                #print parsedJson
+                for listchannel in parsedJson:
+                    #print channel,'=',listchannel['user_id']
+                    if listchannel['user_id'] == channel:
+                        print "Channel Found %s , State in dict: %s" % (channel,dictionary[channel])
+                        #https://stackoverflow.com/questions/5618878/how-to-convert-list-to-string
+                        found = True
+                        foundchannel = dictionary[channel]
 
-                    topic = listchannel['channel']['status']
-                    game = listchannel['channel']['game']
-                    name = listchannel['channel']['display_name']
-                    viewers = listchannel['viewers']
+                        topic = listchannel['title']
+                        game = getGameName(listchannel['game_id'])
+                        name = getUserName(listchannel['user_id'])
+                        print "Name for channel: %s" % name
+                        viewers = listchannel['viewer_count']
 
-                    foundchannel['topic'] = topic
-                    foundchannel['game'] = game
-                    foundchannel['name'] = name
-                    foundchannel['viewers'] = viewers
+                        foundchannel['topic'] = topic
+                        foundchannel['game'] = game
+                        foundchannel['name'] = name
+                        foundchannel['viewers'] = viewers
 
-                    if foundchannel['online'] == False:
-                        onlineoffline +=  "  %s \n" % listchannel['channel']['display_name']
-                        dictionary[channel]['online'] = True
-            #print "ended iteration, %s, %s, %s" % (found,dictionary[channel],channel)
-            if found == False and dictionary[channel]['online'] == True:
-                onlineoffline +=  "  %s \n" % listchannel['channel']['display_name']
-                dictionary[channel] = False
-                dictionary[channel]['topic'] = ''
-                dictionary[channel]['game'] = ''
-        if(len(onlineoffline) > 0):
-            showmessage(onlineoffline)
-        time.sleep(60)
-
+                        if foundchannel['online'] == False:
+                            onlineoffline +=  "  %s \n" % foundchannel['name']
+                            dictionary[channel]['online'] = True
+                if found == False and dictionary[channel]['online'] == True:
+                    print dictionary[channel]
+                    onlineoffline +=  "  %s \n" % getUserName(dictionary[channel]['name']) 
+                    dictionary[channel]['online'] = False
+                    dictionary[channel]['topic'] = ''
+                    dictionary[channel]['game'] = ''
+            if(len(onlineoffline) > 0):
+                showmessage(onlineoffline)
+            print "finish loop"
+            time.sleep(60)
+        except Exception as e:
+            print("Exception:",e)
+            traceback.print_exc()
+            time.sleep(10)
+            pass
+    print "end method"
 
 userID = getUserID()
 channels = getFollowedStreams(userID)
 
-for channelname in channels:
-    dictionary[channelname] = {'name' : channelname, 'online' : False , "viewers" : 0 , 'topic' : '' , 'game' : '', 'urlname' : ''}
+for channelname in channels['data']:
+    dictionary[channelname['to_id']] = {'name' : channelname['to_id'], 'online' : False , "viewers" : 0 , 'topic' : '' , 'game' : '', 'urlname' : ''}
 
-startMainLoop()
+#startMainLoop()

@@ -7,7 +7,7 @@ import webbrowser
 import os
 from thread import start_new_thread
 
-
+print "mem"
 TRAY_TOOLTIP = 'PyChecker'
 TRAY_ICON = os.path.join(os.path.dirname(__file__), 'quader.png')
 
@@ -21,6 +21,7 @@ class TaskBarIcon(wx.TaskBarIcon):
     def __init__(self, frame):
         self.frame = frame
         super(TaskBarIcon, self).__init__()
+        print TRAY_ICON
         self.set_icon(TRAY_ICON)
         self.Bind(wx.EVT_TASKBAR_LEFT_DOWN, self.on_left_down)
 
@@ -55,13 +56,11 @@ class App(wx.App):
         return True
 
 def main():
+    print "MEEEM"
     app = App(False)
     start_new_thread(Twitchcheck.startMainLoop,())
     app.MainLoop()
 
-
-
-
-
+print "meem"
 if __name__ == '__main__':
     main()
