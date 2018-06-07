@@ -27,6 +27,9 @@ def printsummary(json):
     message = message[:-2]
     showmessage(message)
 
+def printError(e):
+    showmessage(e)
+
 def showmessage(message):
     if os.name == 'posix':
         notify2.init('Streams Online')
@@ -93,7 +96,9 @@ def showList():
 def fetchGameNames(gameIDs):
     link = "https://api.twitch.tv/helix/games?id=%s" % gameIDs
     s = requests.get(link,headers=headers)
-    return json.loads(s.text)['data']
+    meem =  json.loads(s.text)['data']
+    print "gamenames: %s" % meem
+    return meem
 
 def fetchUserNames(listOfUserIds):
     link = "https://api.twitch.tv/helix/users?id=%s" % listOfUserIds
@@ -102,6 +107,7 @@ def fetchUserNames(listOfUserIds):
     return json.loads(s.text)['data']
 
 def getGameName(id):
+    print "get game for id: %s" % id
     if id not in gameDict:
         global gameDict
         gameDict[id] = fetchGameNames(id)[0]['name']
@@ -158,7 +164,7 @@ def startMainLoop():
                             dictionary[channel]['online'] = True
                 if found == False and dictionary[channel]['online'] == True:
                     print dictionary[channel]
-                    onlineoffline +=  "  %s \n" % getUserName(dictionary[channel]['name']) 
+                    onlineoffline +=  "  %s \n" % getUserName(channel) 
                     dictionary[channel]['online'] = False
                     dictionary[channel]['topic'] = ''
                     dictionary[channel]['game'] = ''
@@ -170,6 +176,7 @@ def startMainLoop():
             print("Exception:",e)
             traceback.print_exc()
             time.sleep(10)
+            printError("Error")
             pass
     print "end method"
 
