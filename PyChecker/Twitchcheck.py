@@ -107,7 +107,13 @@ def fetchUserNames(listOfUserIds):
     return json.loads(s.text)['data']
 
 def getGameName(id):
+    print type(id)
     print "get game for id: %s" % id
+    if id == u'0':
+        print "meem"
+        return "-"
+    else:
+        print "xd"
     if id not in gameDict:
         global gameDict
         gameDict[id] = fetchGameNames(id)[0]['name']
